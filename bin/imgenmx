@@ -6,6 +6,7 @@ from mxnet import gluon
 from mxnet import ndarray as nd
 from mxnet.gluon import nn, utils
 from mxnet import autograd
+from PIL import Image
 
 import argparse
 import datetime
@@ -81,8 +82,20 @@ def load_images(resolution: int, batch_size: int, image_input_folder: str) -> mx
 
 
 def visualize(img_arr):
-    plt.imshow(((img_arr.asnumpy().transpose(1, 2, 0) + 1.0) * 127.5).astype(np.uint8))
-    plt.axis('off')
+  plt.imshow(((img_arr.asnumpy().transpose(1, 2, 0) + 1.0) * 127.5).astype(np.uint8))
+  plt.axis('off')
+
+def miez(netG):
+
+  num_image = 8
+  for i in range(num_image):
+    latent_z = mx.nd.random_normal(0, 1, shape=(1, latent_z_size, 1, 1), ctx=ctx)
+    img = netG(latent_z)
+    plt.subplot(2,4,i+1)
+    visualize(img[0])
+  plt.show()
+
+
 
 
 def create_generator():
@@ -275,10 +288,15 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
               name, acc = metric.get()
               logging.info(f'speed: {batch_size / (time.time() - btic)} samples/s')
               logging.info(f'discriminator loss = {nd.mean(errD).asscalar()}, generator loss = {nd.mean(errG).asscalar()}, binary training acc = {acc} at iter {iter} epoch {epoch}')
-              latent_z = mx.nd.random_normal(0, 1, shape=(1, latent_z_size, 1, 1), ctx=ctx)
-              img = netG(latent_z)
-              # plt.savefig(f'{output_dir}/image_at_epoch_{epoch:04d}.png')
-              visualize(img)
+              miez(netG)
+              # latent_z = mx.nd.random_normal(0, 1, shape=(1, latent_z_size, 1, 1), ctx=ctx)
+              # raw_gen = netG(latent_z)
+              # img_gen = ((raw_gen + 1.0) * 127.5).astype(np.uint8)
+              # img_gen2 = ((raw_gen.asnumpy() + 1.0) * 127.5).astype(np.uint8)
+              # img = Image.fromarray(img_gen2)
+              # img_path = f'{output_dir}/image_at_epoch_{epoch:04d}.png'
+              # logging.info(f'Saving image to {img_path}')
+              # img.save(img_path)
 
           iter = iter + 1
           btic = time.time()

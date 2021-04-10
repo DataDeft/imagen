@@ -1,0 +1,8 @@
+- hosts: all
+  remote_user: centos
+  roles:
+    - role: os
+    - role: postfix
+    - role: postgres-server
+    - role: mysql-server
+    - role: openvpn

@@ -1,0 +1,4 @@
+[bottle]
+ec2-3-126-121-6.eu-central-1.compute.amazonaws.com disk_dev=/dev/nvme1n1 remote_user=ec2-user
+
+[bottle:vars]

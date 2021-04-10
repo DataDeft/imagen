@@ -1,0 +1,161 @@
+#!/usr/bin/env python
+
+from datetime import date
+from matplotlib import pyplot as plt
+from mxnet import gluon
+from mxnet import ndarray as nd
+from mxnet.gluon import nn, utils
+from mxnet import autograd
+
+import argparse
+import datetime
+import functools
+import logging
+import matplotlib as mpl
+import tarfile
+import matplotlib.image as mpimg
+import mxnet as mx
+import numpy as np
+import os
+import sys
+import time
+import toml
+
+
+
+def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
+
+  # if GPU acceleration is enabled
+  ctx = mx.gpu() if gpu else mx.cpu()
+  # learning parameters (could be in config)
+  lr = 0.0002
+  beta1 = 0.5
+  latent_z_size = 100
+  # saving pictures and checkpoint
+  output_dir = create_output_folder()
+  logging.info(f'TF Version: {tf.__version__}')
+  logging.info(f"GPU Info : {tf.config.experimental.list_physical_devices('GPU')}")
+
+  #
+  # LOADING DATA
+  #
+
+
+  #
+  # GENERATOR & DISCRIMINATOR
+  #
+
+
+  #
+  # GENERATE ANIM GIF
+  #
+  # generate_gif(output_dir)
+
+  logging.info(f'DCGAN has finished training....')
+
+  return 'ok'
+
+
+#
+# CLI
+#
+
+
+def train_cli(args, config):
+  start_training(
+    args.resolution,
+    args.epochs,
+    args.batch_size,
+    args.gpu,
+    args.image_input_folder
+  )
+
+
+def str2bool(v):
+  if isinstance(v, bool):
+    return v
+  if v.lower() in ('yes', 'true', 't', 'y', '1'):
+    return True
+  elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+    return False
+  else:
+    raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def noop(args=None, config=None):
+  logging.error('Not implemented function is called')
+
+
+def args_switch(args, config):
+  fn = switcher.get(args.func, noop)
+  logging.info('fn: %s', fn)
+  return fn(args, config)
+
+
+switcher = {
+  'train': train_cli,
+}
+
+
+def main():
+
+  try:
+
+    exe_path = os.path.dirname(os.path.realpath(sys.argv[0]))
+
+    config = toml.load(os.path.join(exe_path, '..', 'config', 'imgen.toml'))
+
+    log_folder_relative = config.get('main', {}).get('log_folder', 'logs')
+    log_folder_absolute = os.path.join(exe_path, '..', log_folder_relative)
+
+    if not os.path.isdir(log_folder_absolute):
+      os.makedirs(log_folder_absolute, 0o750, exist_ok=True)
+
+    today = str(date.today())
+
+    log_handlers = []
+    log_handlers.append(logging.FileHandler("{0}/{1}.{2}.log".format(log_folder_absolute, today, os.getpid())))
+    log_handlers.append(logging.StreamHandler(sys.stdout))
+    logging.basicConfig(
+      level=logging.INFO,
+      format=config.get('main', {}).get('log_pattern', '%(asctime)s %(levelname)-4s %(message)s'),
+      datefmt=config.get('main', {}).get('log_date_fmt', '%Y-%m-%d %H:%M:%S'),
+      handlers=log_handlers)
+
+    parser = argparse.ArgumentParser(prog='imgen')
+
+    subparsers = parser.add_subparsers()
+
+    train = subparsers.add_parser('train')
+
+    train.add_argument_group('train', '')
+    train.set_defaults(func='train')
+    train.add_argument('--image-input-folder', action='store', required=True)
+    train.add_argument('--resolution', action='store', type=int, required=True)
+    train.add_argument('--epochs', action='store', type=int, required=True)
+    train.add_argument('--batch-size', action='store', type=int, required=True)
+    train.add_argument('--gpu', action='store', type=str2bool, default=False, required=True)
+
+    args = parser.parse_args()
+
+    logging.info('ARGS: %s', args)
+
+    if not any(vars(args).values()):
+      logging.error("No parameter were passed")
+      parser.print_help()
+      exit(1)
+    else:
+      args_switch(args, config)
+
+  except KeyboardInterrupt:
+    logging.info("Ctrl+c was pressed, exiting...")
+    exit(0)
+  except Exception as e:
+    logging.error('Exception caught in main')
+    logging.exception('Exception caught: %s', e)
+    exit(1)
+  finally:
+    logging.info("Quitting...")
+
+if __name__ == '__main__':
+  exit(main())

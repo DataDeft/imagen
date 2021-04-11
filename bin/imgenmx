@@ -105,12 +105,36 @@ def save_params(output_dir, netG, netD):
     return 'err'
 
 
+def load_params(input_dir, ctx, netG, netD):
+
+  try:
+
+    netgs = f"{input_dir}/*.netg.params"
+    netds = f"{input_dir}/*.netd.params"
+
+    last_netg = sorted(glob.glob(netgs))[-1]
+    last_netd = sorted(glob.glob(netds))[-1]
+
+    netG.load_parameters(last_netg, ctx=ctx)
+    netD.load_parameters(last_netd, ctx=ctx)
+
+    return (netG, netD)
+
+  except Exception as ex:
+    logger.error('Error happened while trying to load params')
+    logger.debug(ex)
+
+    return 'err'
+
+
 def fill_buf(buf, num_images, img, shape):
 
-  width = buf.shape[0]/shape[1]
-  height = buf.shape[1]/shape[0]
+  width   = buf.shape[0]/shape[1]
+  height  = buf.shape[1]/shape[0]
+
   img_width = int(num_images%width)*shape[0]
   img_hight = int(num_images/height)*shape[1]
+
   buf[img_hight:img_hight+shape[1], img_width:img_width+shape[0], :] = img
 
 
@@ -138,17 +162,6 @@ def visualize(fake, real):
     ts = f'{datetime.now():%Y.%m.%d_%H.%M.%S}'
     plt.imsave(f'{ts}.real.png', rbuff)
     plt.imsave(f'{ts}.fake.png', fbuff)
-
-
-
-def load_params(input_dir, ctx, netG, netD):
-
-  # list *.netg.params, select last
-  # list *.netg.params, select last
-
-  # netG.load_parameters(filename, ctx=ctx)
-
-  return (netG, netD)
 
 
 def uploading_trained_models_to_s3():

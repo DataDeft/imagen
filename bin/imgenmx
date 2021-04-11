@@ -382,7 +382,7 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder, nets
       logging.info(f'Saving models: {save_params(output_dir, netG, netD)}')
 
     # getting some generated images
-    crate_samples(output_folder, ctx, latent_z_size, netG)
+    crate_samples(output_dir, ctx, latent_z_size, netG)
 
     # end for epoch
 

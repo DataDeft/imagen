@@ -143,7 +143,7 @@ def crate_samples(output_folder, ctx, latent_z_size, netG):
     img_raw = netG(latent_z)
     img_t = img_raw[0].asnumpy().transpose(1, 2, 0)
     img = ((img_t + 1.0) * 127.5).astype(np.uint8)
-    plt.imsave(f'{ts}.{i}.png', img)
+    plt.imsave(f'output_folder/{ts}.{i}.png', img)
 
 
 def uploading_trained_models_to_s3():

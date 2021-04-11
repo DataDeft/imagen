@@ -121,8 +121,8 @@ def load_params(input_dir, ctx, netG, netD):
     netG.load_parameters(last_netg, ctx=ctx)
     netD.load_parameters(last_netd, ctx=ctx)
 
-    logger.info(netG.collect_params())
-    logger.info(netD.collect_params())
+    logging.info(netG.collect_params('.*weight|.*bias'))
+    logging.info(netD.collect_params('.*weight|.*bias'))
 
     return (netG, netD)
 

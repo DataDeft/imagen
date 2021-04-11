@@ -105,6 +105,42 @@ def save_params(output_dir, netG, netD):
     return 'err'
 
 
+def fill_buf(buf, num_images, img, shape):
+
+  width = buf.shape[0]/shape[1]
+  height = buf.shape[1]/shape[0]
+  img_width = int(num_images%width)*shape[0]
+  img_hight = int(num_images/height)*shape[1]
+  buf[img_hight:img_hight+shape[1], img_width:img_width+shape[0], :] = img
+
+
+def visualize(fake, real):
+    #64x3x64x64 to 64x64x64x3
+    fake = fake.transpose((0, 2, 3, 1))
+    #Pixel values from 0-255
+    fake = np.clip((fake+1.0)*(255.0/2.0), 0, 255).astype(np.uint8)
+    #Repeat for real image
+    real = real.transpose((0, 2, 3, 1))
+    real = np.clip((real+1.0)*(255.0/2.0), 0, 255).astype(np.uint8)
+
+    #Create buffer array that will hold all the images in the batch
+    #Fill the buffer so to arrange all images in the batch onto the buffer array
+    n = np.ceil(np.sqrt(fake.shape[0]))
+    fbuff = np.zeros((int(n*fake.shape[1]), int(n*fake.shape[2]), int(fake.shape[3])), dtype=np.uint8)
+    for i, img in enumerate(fake):
+        fill_buf(fbuff, i, img, fake.shape[1:3])
+    rbuff = np.zeros((int(n*real.shape[1]), int(n*real.shape[2]), int(real.shape[3])), dtype=np.uint8)
+    for i, img in enumerate(real):
+        fill_buf(rbuff, i, img, real.shape[1:3])
+
+    #Create a matplotlib figure with two subplots: one for the real and the other for the fake
+    #fill each plot with the buffer array, which creates the image
+    ts = f'{datetime.now():%Y.%m.%d_%H.%M.%S}'
+    plt.imsave(f'{ts}.real.png', rbuff)
+    plt.imsave(f'{ts}.fake.png', fbuff)
+
+
+
 def load_params(input_dir, ctx, netG, netD):
 
   # list *.netg.params, select last
@@ -253,10 +289,13 @@ def update_g_network(latent_z, netG, netD, trainerG, loss, real_label, batch):
   return errG
 
 
-def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
+def start_training(resolution, epochs, batch_size, gpu, image_input_folder, nets_input_folder):
+
+  logging.info(f'resolution: {resolution}, epochs: {epochs}, batch_size: {batch_size}, gpu: {gpu}, image_input_folder:{image_input_folder}, nets_input_folder:{nets_input_folder}')
 
   # if GPU acceleration is enabled
   ctx = mx.gpu() if gpu else mx.cpu()
+
   # learning parameters (could be in config)
   lr = 0.0002
   beta1 = 0.5
@@ -270,7 +309,6 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
   train_data = load_images(resolution, batch_size, image_input_folder)
   logging.info(f'Training data loaded. {train_data}')
 
-
   #
   # GENERATOR & DISCRIMINATOR
   #
@@ -279,6 +317,7 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
 
   logging.info(f'Generator: {netG}')
   logging.info(f'Discriminator: {netD}')
+
 
   #
   # CREATE TRAINERS
@@ -289,9 +328,16 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
   logging.info(f'Discriminator trainer: {trainerD}')
   logging.info(f'Loss: {loss}')
 
+  #
+  # LOADING PREVIOUS TRAINING
+  #
+
+  if nets_input_folder:
+    (netG, netD) = load_params(nets_input_folder, ctx, netG, netD)
+
 
   #
-  # Start training
+  # Start / continue training
   #
 
   real_label = nd.ones((batch_size,), ctx=ctx)
@@ -312,6 +358,7 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
     btic = time.time()
     train_data.reset()
     iter = 0
+    batch = None
     for batch in train_data:
 
       data = batch.data[0].as_in_context(ctx)
@@ -322,7 +369,7 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
       errG = update_g_network(latent_z, netG, netD, trainerG, loss, real_label, batch)
 
       # Print log infomation every ten batches
-      if iter % 10 == 0:
+      if iter % 20 == 0:
           name, acc = metric.get()
           logging.info(f'speed: {batch_size / (time.time() - btic)} samples/s')
           logging.info(f'discriminator loss = {nd.mean(errD).asscalar()}, generator loss = {nd.mean(errG).asscalar()}, binary training acc = {acc} at iter {iter} epoch {epoch}')
@@ -337,6 +384,11 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
 
     if epoch % 20 == 0:
       logging.info(f'Saving models: {save_params(output_dir, netG, netD)}')
+
+    # getting some fakes
+    outG = generator.get_outputs()
+    visualize(outG[0].asnumpy(), batch.data[0].asnumpy())
+    # end for epoch
 
   logging.info(f'DCGAN has finished training....')
   logging.info(f'Uploading to S3: {uploading_trained_models_to_s3()}')
@@ -355,7 +407,8 @@ def train_cli(args, config):
     args.epochs,
     args.batch_size,
     args.gpu,
-    args.image_input_folder
+    args.image_input_folder,
+    args.nets_input_folder
   )
 
 
@@ -423,6 +476,7 @@ def main():
     train.add_argument('--epochs', action='store', type=int, required=True)
     train.add_argument('--batch-size', action='store', type=int, required=True)
     train.add_argument('--gpu', action='store', type=str2bool, default=False, required=True)
+    train.add_argument('--nets-input-folder', action='store', required=False, default=None)
 
     args = parser.parse_args()
 

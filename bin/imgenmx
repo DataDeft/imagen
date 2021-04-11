@@ -10,6 +10,7 @@ from PIL import Image
 
 import argparse
 import functools
+import glob
 import logging
 import matplotlib as mpl
 import tarfile
@@ -99,8 +100,8 @@ def save_params(output_dir, netG, netD):
     return 'ok'
 
   except Exception as ex:
-    logger.error('Error happened while trying to save params')
-    logger.debug(ex)
+    logging.error('Error happened while trying to save params')
+    logging.debug(ex)
 
     return 'err'
 
@@ -121,8 +122,8 @@ def load_params(input_dir, ctx, netG, netD):
     return (netG, netD)
 
   except Exception as ex:
-    logger.error('Error happened while trying to load params')
-    logger.debug(ex)
+    logging.error('Error happened while trying to load params')
+    logging.debug(ex)
 
     return 'err'
 

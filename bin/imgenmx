@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from datetime import date
+from datetime import date, datetime
 from matplotlib import pyplot as plt
 from mxnet import gluon
 from mxnet import ndarray as nd
@@ -9,13 +9,13 @@ from mxnet import autograd
 from PIL import Image
 
 import argparse
-import datetime
 import functools
 import logging
 import matplotlib as mpl
 import tarfile
 import matplotlib.image as mpimg
 import mxnet as mx
+import mxboard as mxb
 import numpy as np
 import os
 import sys
@@ -29,7 +29,7 @@ import toml
 def create_output_folder():
 
   ## Hourly folders
-  output_dir = f'./{datetime.datetime.now():%Y-%m-%d--%H-00}/'
+  output_dir = f'./{datetime.now():%Y-%m-%d--%H-00}/'
   if not os.path.exists(output_dir): os.makedirs(output_dir)
 
   return output_dir
@@ -81,21 +81,51 @@ def load_images(resolution: int, batch_size: int, image_input_folder: str) -> mx
   return train_data
 
 
-def visualize(img_arr):
-  plt.imshow(((img_arr.asnumpy().transpose(1, 2, 0) + 1.0) * 127.5).astype(np.uint8))
-  plt.axis('off')
+def save_params(output_dir, netG, netD):
 
-def miez(netG):
+  try:
 
-  num_image = 8
-  for i in range(num_image):
-    latent_z = mx.nd.random_normal(0, 1, shape=(1, latent_z_size, 1, 1), ctx=ctx)
-    img = netG(latent_z)
-    plt.subplot(2,4,i+1)
-    visualize(img[0])
-  plt.show()
+    ts = f'{datetime.now():%Y.%m.%d_%H.%M.%S}'
+
+    netg_filename = f'{ts}.netg.params'
+    netd_filename = f'{ts}.netd.params'
+
+    netg_path = os.path.join(output_dir, netg_filename)
+    netd_path = os.path.join(output_dir, netd_filename)
+
+    netG.save_parameters(netg_path)
+    netD.save_parameters(netd_path)
+
+    return 'ok'
+
+  except Exception as ex:
+    logger.error('Error happened while trying to save params')
+    logger.debug(ex)
+
+    return 'err'
 
 
+def load_params(input_dir, ctx, netG, netD):
+
+  # list *.netg.params, select last
+  # list *.netg.params, select last
+
+  # netG.load_parameters(filename, ctx=ctx)
+
+  return (netG, netD)
+
+
+def uploading_trained_models_to_s3():
+
+  # get last files
+  # upload files
+
+  return 'ok'
+
+
+#
+# MODELS
+#
 
 
 def create_generator():
@@ -269,44 +299,47 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder):
 
   metric = mx.metric.CustomMetric(facc)
 
+  debug = False
+
+  sw = None
+  if debug:
+    sw = mxb.SummaryWriter(logdir='mxb', flush_secs = 5)
+    sw.add_graph(netG)
+    sw.add_graph(netD)
+
   for epoch in range(epochs):
-      tic = time.time()
+    tic = time.time()
+    btic = time.time()
+    train_data.reset()
+    iter = 0
+    for batch in train_data:
+
+      data = batch.data[0].as_in_context(ctx)
+
+      latent_z = mx.nd.random_normal(0, 1, shape=(batch_size, latent_z_size, 1, 1), ctx=ctx)
+
+      errD = update_d_network(data, latent_z, netG, netD, trainerD, loss, real_label, fake_label, metric, batch)
+      errG = update_g_network(latent_z, netG, netD, trainerG, loss, real_label, batch)
+
+      # Print log infomation every ten batches
+      if iter % 10 == 0:
+          name, acc = metric.get()
+          logging.info(f'speed: {batch_size / (time.time() - btic)} samples/s')
+          logging.info(f'discriminator loss = {nd.mean(errD).asscalar()}, generator loss = {nd.mean(errG).asscalar()}, binary training acc = {acc} at iter {iter} epoch {epoch}')
+
+      iter = iter + 1
       btic = time.time()
-      train_data.reset()
-      iter = 0
-      for batch in train_data:
 
-          data = batch.data[0].as_in_context(ctx)
+    name, acc = metric.get()
+    metric.reset()
+    logging.info(f'binary training acc at epoch {epoch}: {name}={acc}')
+    logging.info(f'time: {time.time() - tic}')
 
-          latent_z = mx.nd.random_normal(0, 1, shape=(batch_size, latent_z_size, 1, 1), ctx=ctx)
-
-          errD = update_d_network(data, latent_z, netG, netD, trainerD, loss, real_label, fake_label, metric, batch)
-          errG = update_g_network(latent_z, netG, netD, trainerG, loss, real_label, batch)
-
-          # Print log infomation every ten batches
-          if iter % 10 == 0:
-              name, acc = metric.get()
-              logging.info(f'speed: {batch_size / (time.time() - btic)} samples/s')
-              logging.info(f'discriminator loss = {nd.mean(errD).asscalar()}, generator loss = {nd.mean(errG).asscalar()}, binary training acc = {acc} at iter {iter} epoch {epoch}')
-              miez(netG)
-              # latent_z = mx.nd.random_normal(0, 1, shape=(1, latent_z_size, 1, 1), ctx=ctx)
-              # raw_gen = netG(latent_z)
-              # img_gen = ((raw_gen + 1.0) * 127.5).astype(np.uint8)
-              # img_gen2 = ((raw_gen.asnumpy() + 1.0) * 127.5).astype(np.uint8)
-              # img = Image.fromarray(img_gen2)
-              # img_path = f'{output_dir}/image_at_epoch_{epoch:04d}.png'
-              # logging.info(f'Saving image to {img_path}')
-              # img.save(img_path)
-
-          iter = iter + 1
-          btic = time.time()
-
-      name, acc = metric.get()
-      metric.reset()
-      logging.info(f'binary training acc at epoch {epoch}: {name}={acc}')
-      logging.info(f'time: {time.time() - tic}')
+    if epoch % 20 == 0:
+      logging.info(f'Saving models: {save_params(output_dir, netG, netD)}')
 
   logging.info(f'DCGAN has finished training....')
+  logging.info(f'Uploading to S3: {uploading_trained_models_to_s3()}')
 
   return 'ok'
 

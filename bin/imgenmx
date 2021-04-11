@@ -116,6 +116,8 @@ def load_params(input_dir, ctx, netG, netD):
     last_netg = sorted(glob.glob(netgs))[-1]
     last_netd = sorted(glob.glob(netds))[-1]
 
+    logging.info(f'Previous params are: {last_netg} and {last_netd}')
+
     netG.load_parameters(last_netg, ctx=ctx)
     netD.load_parameters(last_netd, ctx=ctx)
 
@@ -347,6 +349,7 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder, nets
   #
 
   if nets_input_folder:
+    logging.info('Loading previous training state...')
     (netG, netD) = load_params(nets_input_folder, ctx, netG, netD)
 
 

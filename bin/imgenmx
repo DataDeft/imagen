@@ -406,7 +406,7 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder, nets
       logging.info(f'Saving models: {save_params(output_dir, netG, netD)}')
 
     # getting some fakes
-    outG = generator.get_outputs()
+    outG = netG.get_outputs()
     visualize(outG[0].asnumpy(), batch.data[0].asnumpy())
     # end for epoch
 

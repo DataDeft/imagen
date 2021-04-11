@@ -133,41 +133,17 @@ def load_params(input_dir, ctx, netG, netD):
     return 'err'
 
 
-def fill_buf(buf, num_images, img, shape):
+def crate_samples(output_folder, ctx, latent_z_size, netG):
 
-  width   = buf.shape[0]/shape[1]
-  height  = buf.shape[1]/shape[0]
+  ts        = f'{datetime.now():%Y.%m.%d_%H.%M.%S}'
+  num_image = 8
 
-  img_width = int(num_images%width)*shape[0]
-  img_hight = int(num_images/height)*shape[1]
-
-  buf[img_hight:img_hight+shape[1], img_width:img_width+shape[0], :] = img
-
-
-def visualize(fake, real):
-    #64x3x64x64 to 64x64x64x3
-    fake = fake.transpose((0, 2, 3, 1))
-    #Pixel values from 0-255
-    fake = np.clip((fake+1.0)*(255.0/2.0), 0, 255).astype(np.uint8)
-    #Repeat for real image
-    real = real.transpose((0, 2, 3, 1))
-    real = np.clip((real+1.0)*(255.0/2.0), 0, 255).astype(np.uint8)
-
-    #Create buffer array that will hold all the images in the batch
-    #Fill the buffer so to arrange all images in the batch onto the buffer array
-    n = np.ceil(np.sqrt(fake.shape[0]))
-    fbuff = np.zeros((int(n*fake.shape[1]), int(n*fake.shape[2]), int(fake.shape[3])), dtype=np.uint8)
-    for i, img in enumerate(fake):
-        fill_buf(fbuff, i, img, fake.shape[1:3])
-    rbuff = np.zeros((int(n*real.shape[1]), int(n*real.shape[2]), int(real.shape[3])), dtype=np.uint8)
-    for i, img in enumerate(real):
-        fill_buf(rbuff, i, img, real.shape[1:3])
-
-    #Create a matplotlib figure with two subplots: one for the real and the other for the fake
-    #fill each plot with the buffer array, which creates the image
-    ts = f'{datetime.now():%Y.%m.%d_%H.%M.%S}'
-    plt.imsave(f'{ts}.real.png', rbuff)
-    plt.imsave(f'{ts}.fake.png', fbuff)
+  for i in range(num_image):
+    latent_z = mx.nd.random_normal(0, 1, shape=(1, latent_z_size, 1, 1), ctx=ctx)
+    img_raw = netG(latent_z)
+    img_t = img_raw[0].asnumpy().transpose(1, 2, 0)
+    img = ((img_t + 1.0) * 127.5).astype(np.uint8)
+    plt.imsave(f'{ts}.{i}.png', img)
 
 
 def uploading_trained_models_to_s3():
@@ -405,9 +381,9 @@ def start_training(resolution, epochs, batch_size, gpu, image_input_folder, nets
     if epoch % 20 == 0:
       logging.info(f'Saving models: {save_params(output_dir, netG, netD)}')
 
-    # getting some fakes
-    outG = netG.get_outputs()
-    visualize(outG[0].asnumpy(), batch.data[0].asnumpy())
+    # getting some generated images
+    crate_samples(output_folder, ctx, latent_z_size, netG)
+
     # end for epoch
 
   logging.info(f'DCGAN has finished training....')

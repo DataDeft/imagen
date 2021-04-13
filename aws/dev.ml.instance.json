@@ -1,0 +1,21 @@
+{
+  "SpotPrice": "0.04",
+  "TargetCapacity": 2,
+  "IamFleetRole": "arn:aws:iam::123456789012:role/my-spot-fleet-role",
+  "LaunchSpecifications": [
+      {
+          "ImageId": "ami-1a2b3c4d",
+          "KeyName": "my-key-pair",
+          "SecurityGroups": [
+              {
+                  "GroupId": "sg-1a2b3c4d"
+              }
+          ],
+          "InstanceType": "m3.medium",
+          "SubnetId": "subnet-1a2b3c4d, subnet-3c4d5e6f",
+          "IamInstanceProfile": {
+              "Arn": "arn:aws:iam::123456789012:instance-profile/my-iam-role"
+          }
+      }
+  ]
+}

@@ -1,4 +1,4 @@
-alias awsc='aws --profile datadeft-dev --region eu-central-1'
+alias awsc='aws --profile datadeft-dev --region eu-west-1'
 
 awsc iam create-policy --policy-name "dev-ml-datadeft-policy" --path "/dev/" --policy-document "file://dev.ml.datadeft.policy.json"
 

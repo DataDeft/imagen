@@ -1,0 +1,35 @@
+---
+
+- name: Sync GAN data
+  command: >
+    aws s3 sync
+      s3://dev.ml.datadeft.eu/mxnet-dcgan/lightweight-gan/
+      /data/
+
+
+- name: Sync GAN data
+  command: >
+    aws s3 sync
+      s3://dev.ml.datadeft.eu/mxnet-dcgan/music-vid-imgs/
+      /data/imgs/
+
+
+- name: Rendering templates
+  template:
+    src: "{{ item.name }}.j2"
+    dest: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - { "name": train.service, "path": /etc/systemd/system/train.service, "owner": root, "mode": 0444 }
+    - { "name": train.sh, "path": /data/train.sh, "owner": ec2-user, "mode": 0540 }
+  become: yes
+
+
+- name: Enable train in systemd
+  systemd:
+    state: enabled
+    daemon_reload: yes
+    name: train
+  become: yes

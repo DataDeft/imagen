@@ -1,0 +1,22 @@
+[Unit]
+Description=Serving files
+Documentation=https://github.com/DataDeft/imagen
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/data/http.sh
+User=ec2-user
+Group=ec2-user
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=infinity
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=2
+StartLimitBurst=3
+TasksMax=infinity
+
+[Install]
+WantedBy=multi-user.target

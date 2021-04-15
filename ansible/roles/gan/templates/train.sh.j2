@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+source activate pytorch_latest_p37
+
+which python
+
+pip install lightweight-gan
+
+cd /data && lightweight_gan --data /data/imgs/ --name sec --batch-size 16 --gradient-accumulate-every 4 --amp --image-size 1024

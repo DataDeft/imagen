@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
 
+aws s3 sync s3://dev.ml.datadeft.eu/mxnet-dcgan/lightweight-gan/ /data/
+
+aws s3 sync s3://dev.ml.datadeft.eu/mxnet-dcgan/music-vid-imgs/ /data/imgs/
+
+# lightweight_gan --data ./imgs/ --name sec --batch-size 16 --gradient-accumulate-every 4 --amp --image-size 1024
+
+# continuing from previous epoch - 6
+# loading from version 0.20.0
+
 while true ; do
   date ;
-  aws s3 sync models/ s3://dev.ml.datadeft.eu/mxnet-dcgan/lightweight-gan/models/ ; aws s3 sync results/ s3://dev.ml.datadeft.eu/mxnet-dcgan/lightweight-gan/results/ ;
+  aws s3 sync models/ s3://dev.ml.datadeft.eu/mxnet-dcgan/lightweight-gan/models/ ;
+  aws s3 sync results/ s3://dev.ml.datadeft.eu/mxnet-dcgan/lightweight-gan/results/ ;
   sleep 240 ;
 done
+
+# lightweight_gan \
+#   --name first \
+#   --generate \
+#   --num-image-tiles 100
